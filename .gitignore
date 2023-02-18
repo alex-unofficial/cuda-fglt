@@ -1,0 +1,14 @@
+# gitignore file
+
+# the executable and object files
+bin/*
+build/*
+
+# data files
+data/*
+
+# slurm files
+slurm-*.out
+
+# valgrind files
+vgcore.*
