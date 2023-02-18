@@ -50,7 +50,7 @@ TESTS := $(basename $(notdir $(shell find $(TESTS_DIR) -name *.c -o -name *.cpp 
 EXTERNAL := $(basename $(notdir $(shell find $(EXTERNAL_DIR) -name *.c -o -name *.cpp -o -name *.cu)))
 
 # The object files and dependency files
-OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(filter-out $(EXEC_NAME).cu, $(SRCS)))
+OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(filter-out $(EXEC_NAME).cpp, $(SRCS)))
 OBJS := $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(OBJS))
 OBJS := $(patsubst %.cu, $(BUILD_DIR)/%.o, $(OBJS))
 
@@ -60,11 +60,11 @@ EXTERNAL_OBJS := $(patsubst %, $(BUILD_DIR)/%.o, $(EXTERNAL))
 DEPS := $(patsubst %.o, %.d, $(OBJS) $(TEST_OBJS) $(EXTERNAL_OBJS))
 
 # Include directories for the compiler
-INC_DIRS := $(shell find $(SRC_DIR) $(EXTERNAL_DIR) -type d)
-INC_FLAGS := $(addprefix -I,$(INC_DIRS)) $(shell pkgconf --cflags-only-I $(PACKAGES))
+INC_FLAGS := $(addprefix -I,$(SRC_DIR) $(EXTERNAL_DIR)) $(shell pkgconf --cflags-only-I $(PACKAGES))
 
 # Setting VPATH to include the source file directories
-VPATH=$(TESTS_DIR):$(shell tr ' ' ':' <<< '$(INC_DIRS)')
+VPATH_DIRS := $(shell find $(SRC_DIR) $(EXTERNAL_DIR) -type d)
+VPATH=$(TESTS_DIR):$(shell tr ' ' ':' <<< '$(VPATH_DIRS)')
 
 # C preprocessor flags
 CPPFLAGS=$(INC_FLAGS) -MMD -MP

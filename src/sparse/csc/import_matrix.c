@@ -24,7 +24,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "mmio.h"
+#include "mmio/mmio.h"
 
 /* Compare the second index given 2 pairs of integer points
  *
@@ -67,7 +67,13 @@ static int comp_col(const void *a, const void *b) {
  * we are concerned mostly with the shape of the graph the matrix represents so the
  * values are discarded, and only the location of the nonzero elements is saved.
  */
-int import_matrix(char *mtx_fname, int *num_cols, int *num_nz, int **row_idx, int **col_ptr) {
+int import_matrix(
+		const char *mtx_fname, 
+		int *num_cols, 
+		int *num_nz, 
+		int **row_idx, 
+		int **col_ptr
+		) {
 
 	// Attempt to open the file mtx_fname and checking for errors.
 	FILE *mtx_file = NULL;
@@ -149,7 +155,7 @@ int import_matrix(char *mtx_fname, int *num_cols, int *num_nz, int **row_idx, in
 	}
 
 	// is true if the matrix is of type symmetric
-	bool is_symmetric = (bool) mm_is_symmetric(mtx_type);
+	bool is_symmetric = (bool) !(mm_is_general(mtx_type));
 
 	// ind_num is the number of indices and it may be nnz if the matrix is general,
 	// or up to 2*nnz if the matrix is symmetric.
@@ -165,22 +171,17 @@ int import_matrix(char *mtx_fname, int *num_cols, int *num_nz, int **row_idx, in
 	for(int i = 0 ; i < n_nz ; ++i) {
 		int row, col;
 
-		int fscanf_match_needed = 0;
+		int fscanf_match_needed = 2;
 		int fscanf_match_count = 0;
 
 		// get the indices from the file, depending on the type of Matrix in the file,
 		// discarding the value of the matrix if needed.
 		if(mm_is_pattern(mtx_type)) {
-			fscanf_match_needed = 2;
 			fscanf_match_count = fscanf(mtx_file, "%u %u\n", &row, &col);
-		} else if(mm_is_integer(mtx_type)) {
-			int val;
-			fscanf_match_needed = 3;
-			fscanf_match_count = fscanf(mtx_file, "%u %u %d\n", &row, &col, &val);
-		} else if(mm_is_real(mtx_type)) {
-			double val;
-			fscanf_match_needed = 3;
-			fscanf_match_count = fscanf(mtx_file, "%u %u %lf\n", &row, &col, &val);
+		} else if(mm_is_integer(mtx_type) || mm_is_real(mtx_type)) {
+			fscanf_match_count = fscanf(mtx_file, "%u %u %*lf\n", &row, &col);
+		} else if(mm_is_complex(mtx_type)) {
+			fscanf_match_count = fscanf(mtx_file, "%u %u %*lf %*lf\n", &row, &col);
 		} else {
 			fprintf(stderr, "MatrixMarket file is of unsupported format: %s\n", mtx_fname);
 
