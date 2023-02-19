@@ -28,7 +28,7 @@ CFLAGS=$(shell pkgconf --cflags-only-other $(PACKAGES)) -O3
 LDFLAGS=$(shell pkgconf --libs $(PACKAGES))
 
 # The name of the executable
-EXEC_NAME=fglt
+EXEC_NAME=cuda-fglt
 
 # The various directories used in the project
 BUILD_DIR ?= ./build
