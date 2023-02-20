@@ -68,11 +68,11 @@ static int comp_col(const void *a, const void *b) {
  * values are discarded, and only the location of the nonzero elements is saved.
  */
 int import_matrix(
-		const char *mtx_fname, 
-		int *num_cols, 
-		int *num_nz, 
-		int **row_idx, 
-		int **col_ptr
+		char const * const mtx_fname, 
+		int * const num_cols, 
+		int * const num_nz, 
+		int ** const row_idx, 
+		int ** const col_ptr
 		) {
 
 	// Attempt to open the file mtx_fname and checking for errors.
@@ -163,7 +163,7 @@ int import_matrix(
 
 	// indices will store the pairs of row, column indices of nonzero elements
 	// in the .mtx file, later to be stored in the appropriate structs
-	int indices[ind_num][2];
+	int *indices = (int *)malloc(ind_num * 2 * sizeof(int));
 
 	// num_entries will hold the real number of entries in the indices list.
 	int num_entries = 0;
@@ -215,18 +215,18 @@ int import_matrix(
 		if(!is_symmetric || row == col) {
 			// if the matrix is non-symmetric or the entry is on the matrix diagonal
 			// simply add the entry to the indices list
-			indices[num_entries][0] = row - 1;
-			indices[num_entries][1] = col - 1;
+			(indices + 2 * num_entries)[0] = row - 1;
+			(indices + 2 * num_entries)[1] = col - 1;
 
 			num_entries += 1;
 		} else {
 			// if the matrix is symmetric then add both the entry and it's inverse (j, i)
 			// to the indices list
-			indices[num_entries][0] = row - 1;
-			indices[num_entries][1] = col - 1;
+			(indices + 2 * num_entries)[0] = row - 1;
+			(indices + 2 * num_entries)[1] = col - 1;
 
-			indices[num_entries + 1][0] = col - 1;
-			indices[num_entries + 1][1] = row - 1;
+			(indices + 2 * num_entries + 2)[0] = col - 1;
+			(indices + 2 * num_entries + 2)[1] = row - 1;
 
 			num_entries += 2;
 		}
@@ -262,8 +262,8 @@ int import_matrix(
 
 	// then we loop over the COO array
 	for(int i = 0 ; i < *num_nz ; ++i) {
-		int row = indices[i][0];
-		int col = indices[i][1];
+		int row = (indices + 2 * i)[0];
+		int col = (indices + 2 * i)[1];
 
 		// store the row in row_idx as is
 		(*row_idx)[i] = row;

@@ -22,7 +22,7 @@ CXX=g++
 NVCC=nvcc
 
 # Packages used and Compiler flags
-PACKAGES=cusparse cublas
+PACKAGES=cusparse
 
 CFLAGS=$(shell pkgconf --cflags-only-other $(PACKAGES)) -O3
 LDFLAGS=$(shell pkgconf --libs $(PACKAGES))
@@ -69,6 +69,9 @@ VPATH=$(TESTS_DIR):$(shell tr ' ' ':' <<< '$(VPATH_DIRS)')
 # C preprocessor flags
 CPPFLAGS=$(INC_FLAGS) -MMD -MP
 
+# CUDA compiler flags
+NVCCFLAGS=-arch=sm_50
+
 .PHONY: default all test tests clean
 
 default: $(BIN_DIR)/$(EXEC_NAME)
@@ -78,11 +81,11 @@ all: $(BIN_DIR)/$(EXEC_NAME) tests
 tests: $(addprefix $(BIN_DIR)/,$(TESTS))
 
 $(BIN_DIR)/%: $(BUILD_DIR)/%.o $(OBJS) $(EXTERNAL_OBJS) | $(BIN_DIR)
-	$(NVCC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	$(NVCC) $(CPPFLAGS) $(CFLAGS) $(NVCCFLAGS) $^ -o $@ $(LDFLAGS)
 
 .PRECIOUS: $(BUILD_DIR)/%.o
 $(BUILD_DIR)/%.o: %.cu | $(BUILD_DIR)
-	$(NVCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(NVCC) $(CPPFLAGS) $(CFLAGS) $(NVCCFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

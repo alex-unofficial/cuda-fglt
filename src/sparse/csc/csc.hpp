@@ -23,11 +23,11 @@ namespace sparse {
 	};
 
 	extern "C" int import_matrix(
-			const char *mtx_fname, 
-			int *num_cols, 
-			int *num_nz, 
-			int **row_idx, 
-			int **col_ptr
+			char const * const mtx_fname, 
+			int * const num_cols, 
+			int * const num_nz, 
+			int ** const row_idx, 
+			int ** const col_ptr
 			);
 
 	template <typename datatype> CSC<datatype>::CSC() {

@@ -2,6 +2,7 @@
 #include <cstdlib>
 
 #include "sparse/csc/csc.hpp"
+#include "fglt/fglt.cuh"
 
 using namespace std;
 
@@ -15,19 +16,25 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	sparse::CSC<int> matrix = sparse::CSC<int> (mtx_fname);
+	sparse::CSC<double> const * const matrix = new sparse::CSC<double> (mtx_fname);
 
-	cout << matrix.n_cols << " " << matrix.n_nz << endl;
+	double *f_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double *));
+	double *fn_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double *));
 
-	for(int i = 0 ; i < matrix.n_nz ; i++) {
-		cout << matrix.row_idx[i] << " ";
+	double *f[NGRAPHLET];
+	double *fn[NGRAPHLET];
+	for(int k = 0 ; k < NGRAPHLET ; k++) {
+		f[k] = (double *)(f_base + matrix->n_cols * k);
+		fn[k] = (double *)(fn_base + matrix->n_cols * k);
 	}
-	cout << endl;
 
-	for(int j = 0 ; j < matrix.n_cols + 1 ; j++) {
-		cout << matrix.col_ptr[j] << " ";
+	cuFGLT::compute(matrix, f_base, fn_base);
+
+	for(int i = 0 ; i < matrix->n_cols ; i++) {
+		cout << f[0][i] << " " << f[1][i] << " " << f[2][i] << " " << f[3][i] << " " << f[4][i] << endl;
 	}
-	cout << endl;
+
+	delete matrix;
 
 	return 0;
 }
