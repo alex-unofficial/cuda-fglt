@@ -1,34 +1,57 @@
-#include "fglt/fglt.cuh"
+#include "fglt.cuh"
 
-#define NUMBLOCKS 16
+#define NUMBLOCKS 512
 #define NUMTHREADS 128
+
 
 __global__ static void fill_d0(
 		double * const d_f0,
 		int n_cols);
+
 
 __global__ static void compute_d1(
 		double * const d_f1, 
 		int const * const d_col_ptr,
 		int n_cols);
 
+
 __global__ static void compute_d2(
 		double * const d_f2,
 		int const * const d_row_idx,
 		int const * const d_col_ptr,
-		double const * const p1,
+		double const * const d_p1,
 		int n_cols);
+
 
 __global__ static void compute_d3(
 		double * const d_f3,
-		double const * const p1,
+		double const * const d_p1,
 		int n_cols);
+
+
+__global__ static void compute_d4(
+		double * const d_f4,
+		int const * const d_row_idx,
+		int const * const d_col_ptr,
+		int n_cols);
+
+
+__device__ static void sum_reduce(
+		double * const t_results,
+		int thread_num);
+
+
+__device__ static int sparse_dot_prod(
+		int const * const vec1_idx,
+		int vec1_nnz,
+		int const * const vec2_idx,
+		int vec2_nnz);
+
 
 int cuFGLT::compute(
 		sparse::CSC<double> const * const adj,
 		double * const f,
 		double * const fn) {
-
 
 	/* extract matrix information */
 
@@ -87,9 +110,8 @@ int cuFGLT::compute(
 	// compute f3
 	compute_d3<<<NUMBLOCKS, NUMTHREADS>>>(d_f[3], d_f[1], n_cols);
 
-	// TODO f3, f4
-	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_f[4], n_cols);
-
+	// compute f4
+	compute_d4<<<NUMBLOCKS, NUMTHREADS>>>(d_f[4], d_row_idx, d_col_ptr, n_cols);
 
 	/* Transform raw freq to net freq */
 
@@ -124,6 +146,7 @@ int cuFGLT::compute(
 	return 0;
 }
 
+
 __global__ static void fill_d0(
 		double * const d_f0,
 		int n_cols) {
@@ -135,6 +158,7 @@ __global__ static void fill_d0(
 		idx += blockDim.x;
 	}
 }
+
 
 __global__ static void compute_d1(
 		double * const d_f1, 
@@ -149,11 +173,12 @@ __global__ static void compute_d1(
 	}
 }
 
+
 __global__ static void compute_d2(
 		double * const d_f2,
 		int const * const d_row_idx,
 		int const * const d_col_ptr,
-		double const * const p1,
+		double const * const d_p1,
 		int n_cols) {
 
 	int i = blockIdx.x;
@@ -167,41 +192,125 @@ __global__ static void compute_d2(
 
 		int j = d_col_ptr[i] + tid;
 		while(j < d_col_ptr[i + 1]) {
-			t_sum += p1[d_row_idx[j]];
+			t_sum += d_p1[d_row_idx[j]];
 			j += thread_num;
 		}
 
 		t_results[tid] = t_sum;
 
-		__syncthreads();
-
-		for(int offset = 1; offset < thread_num ; offset <<= 1) {
-			int mod = offset << 1;
-
-			if(tid % mod == 0 && (tid + offset) < thread_num) {
-				t_results[tid] += t_results[tid + offset];
-			}
-
-			__syncthreads();
-		}
+		sum_reduce(t_results, thread_num);
 
 		if(tid == 0) {
-			d_f2[i] = (double)(t_results[0] - p1[i]);
+			d_f2[i] = (double)(t_results[0] - d_p1[i]);
 		}
 
 		i += gridDim.x;
 	}
 }
 
+
 __global__ static void compute_d3(
 		double * const d_f3,
-		double const * const p1,
+		double const * const d_p1,
 		int n_cols) {
 	
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
 	while(idx < n_cols) {
-		d_f3[idx] = p1[idx] * (p1[idx] - 1) / 2;
+		d_f3[idx] = (double)(d_p1[idx] * (d_p1[idx] - 1)) / 2.0;
 		idx += blockDim.x;
 	}
+}
+
+
+__global__ static void compute_d4(
+		double * const d_f4,
+		int const * const d_row_idx,
+		int const * const d_col_ptr,
+		int n_cols) {
+
+	int i = blockIdx.x;
+
+	const int thread_num = blockDim.x;
+	__shared__ double t_results[NUMTHREADS];
+
+	while(i < n_cols) {
+		int tid = threadIdx.x;
+		double t_sum = 0;
+
+		int const * const ai = d_row_idx + d_col_ptr[i];
+		int ai_nnz = d_col_ptr[i + 1] - d_col_ptr[i];
+
+		int j_ptr = d_col_ptr[i] + tid;
+		while(j_ptr < d_col_ptr[i + 1]) {
+			int j = d_row_idx[j_ptr];
+
+			int const * const aj = d_row_idx + d_col_ptr[j];
+			int aj_nnz = d_col_ptr[j + 1] - d_col_ptr[j];
+
+			t_sum += sparse_dot_prod(ai, ai_nnz, aj, aj_nnz);
+
+			j_ptr += thread_num;
+		}
+
+		t_results[tid] = t_sum;
+
+		sum_reduce(t_results, thread_num);
+
+		if(tid == 0) {
+			d_f4[i] = (double)(t_results[0]) / 2.0;
+		}
+
+		i += gridDim.x;
+	}
+}
+
+
+__device__ static void sum_reduce(
+		double * const t_results,
+		int thread_num) {
+	
+	int tid = threadIdx.x;
+
+	__syncthreads();
+
+	for(int offset = 1; offset < thread_num ; offset <<= 1) {
+		int mod = offset << 1;
+
+		if(tid % mod == 0 && (tid + offset) < thread_num) {
+			t_results[tid] += t_results[tid + offset];
+		}
+
+		__syncthreads();
+	}
+}
+
+
+__device__ static int sparse_dot_prod(
+		int const * const vec1_idx,
+		int vec1_nnz,
+		int const * const vec2_idx,
+		int vec2_nnz) {
+
+	double res = 0;
+
+	int i_ptr = 0, j_ptr = 0;
+	while(i_ptr < vec1_nnz && j_ptr < vec2_nnz) {
+
+		int i = vec1_idx[i_ptr];
+		int j = vec2_idx[j_ptr];
+
+		if(i < j) {
+			i_ptr += 1;
+		} else if(j < i) {
+			j_ptr += 1;
+		} else {
+			res += 1;
+
+			i_ptr += 1;
+			j_ptr += 1;
+		}
+	}
+
+	return res;
 }
