@@ -20,8 +20,8 @@ int main(int argc, char **argv) {
 	sparse::CSC<double> const * const matrix = new sparse::CSC<double> (mtx_fname);
 	cout << "=== loading done" << endl << endl;
 
-	double *f_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double *));
-	double *fn_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double *));
+	double *f_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
+	double *fn_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
 
 	double *f[NGRAPHLET];
 	double *fn[NGRAPHLET];
@@ -38,6 +38,9 @@ int main(int argc, char **argv) {
 	for(int i = 0 ; i < matrix->n_cols ; i++) {
 		cout << f[0][i] << " " << f[1][i] << " " << f[2][i] << " " << f[3][i] << " " << f[4][i] << endl;
 	}
+
+	free(f_base);
+	free(fn_base);
 
 	delete matrix;
 
