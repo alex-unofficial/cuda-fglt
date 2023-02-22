@@ -277,6 +277,8 @@ int import_matrix(
 		(*col_ptr)[i + 1] += (*col_ptr)[i];
 	}
 
+	free(indices);
+
 	return 0;
 }
 

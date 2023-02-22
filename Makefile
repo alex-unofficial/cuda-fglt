@@ -22,7 +22,7 @@ CXX=g++
 NVCC=nvcc
 
 # Packages used and Compiler flags
-PACKAGES=cusparse
+PACKAGES=cuda
 
 CFLAGS=$(shell pkgconf --cflags-only-other $(PACKAGES)) -O3
 LDFLAGS=$(shell pkgconf --libs $(PACKAGES))
