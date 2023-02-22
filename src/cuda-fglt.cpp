@@ -36,7 +36,8 @@ int main(int argc, char **argv) {
 
 	cout << "RESULTS:" << endl;
 	for(int i = 0 ; i < matrix->n_cols ; i++) {
-		cout << f[0][i] << " " << f[1][i] << " " << f[2][i] << " " << f[3][i] << " " << f[4][i] << endl;
+		cout << i << " " << fn[0][i] << " " << fn[1][i] << " " 
+		     << fn[2][i] << " " << fn[3][i] << " " << fn[4][i] << endl;
 	}
 
 	free(f_base);

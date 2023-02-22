@@ -1,8 +1,7 @@
 #include "fglt.cuh"
 
 #define NUMBLOCKS 512
-#define NUMTHREADS 128
-
+#define NUMTHREADS 32
 
 __global__ static void fill_d0(
 		double * const d_f0,
@@ -33,6 +32,20 @@ __global__ static void compute_d4(
 		double * const d_f4,
 		int const * const d_row_idx,
 		int const * const d_col_ptr,
+		int n_cols);
+
+
+__global__ static void raw2net(
+		const double * const d_f0,
+		const double * const d_f1,
+		const double * const d_f2,
+		const double * const d_f3,
+		const double * const d_f4,
+		double * const d_fn0,
+		double * const d_fn1,
+		double * const d_fn2,
+		double * const d_fn3,
+		double * const d_fn4,
 		int n_cols);
 
 
@@ -115,13 +128,10 @@ int cuFGLT::compute(
 
 	/* Transform raw freq to net freq */
 
-	// TODO raw2net
-	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_fn[0], n_cols);
-	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_fn[1], n_cols);
-	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_fn[2], n_cols);
-	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_fn[3], n_cols);
-	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_fn[4], n_cols);
-
+	raw2net<<<NUMBLOCKS, NUMTHREADS>>>( 
+	    d_f[0],  d_f[1],  d_f[2],  d_f[3],  d_f[4], 
+	    d_fn[0], d_fn[1], d_fn[2], d_fn[3], d_fn[4],
+	    n_cols);
 
 	/* Transfer data from device to host and free memory on device */
 
@@ -262,6 +272,33 @@ __global__ static void compute_d4(
 		}
 
 		i += gridDim.x;
+	}
+}
+
+
+__global__ static void raw2net(
+		const double * const d_f0,
+		const double * const d_f1,
+		const double * const d_f2,
+		const double * const d_f3,
+		const double * const d_f4,
+		double * const d_fn0,
+		double * const d_fn1,
+		double * const d_fn2,
+		double * const d_fn3,
+		double * const d_fn4,
+		int n_cols) {
+
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	while(idx < n_cols) {
+		d_fn0[idx] = d_f0[idx];
+		d_fn1[idx] = d_f1[idx];
+		d_fn2[idx] = d_f2[idx] - 2 * d_f4[idx];
+		d_fn3[idx] = d_f3[idx] - d_f4[idx];
+		d_fn4[idx] = d_f4[idx];
+
+		idx += blockDim.x;
 	}
 }
 
