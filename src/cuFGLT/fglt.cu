@@ -71,7 +71,6 @@ int cuFGLT::compute(
 	const int n_cols = adj->n_cols;
 	const int n_nz = adj->n_nz;
 
-	double const * const nz_values = adj->nz_values;
 	int const * const row_idx = adj->row_idx;
 	int const * const col_ptr = adj->col_ptr;
 
@@ -94,17 +93,14 @@ int cuFGLT::compute(
 		d_fn[k] = (double *)((char*)d_fn_base + k * d_pitch);
 	}
 
-	double *d_nz_values;
 	int *d_row_idx;
 	int *d_col_ptr;
 
 	// allocate memory for the matrix arrays
-	cudaMalloc((void **) &d_nz_values, n_nz * sizeof(int));
 	cudaMalloc((void **) &d_row_idx, n_nz * sizeof(int));
 	cudaMalloc((void **) &d_col_ptr, (n_cols + 1) * sizeof(int));
 
 	// transfer matrix data from host to device
-	cudaMemcpy(d_nz_values, nz_values, n_nz * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_row_idx, row_idx, n_nz * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_col_ptr, col_ptr, (n_cols + 1) * sizeof(int), cudaMemcpyHostToDevice);
 
