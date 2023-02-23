@@ -1,7 +1,12 @@
 #include "fglt.cuh"
 
+#include <iostream>
+#include <chrono>
+
 #define NUMBLOCKS 512
 #define NUMTHREADS 32
+
+using namespace std;
 
 __global__ static void fill_d0(
 		double * const d_f0,
@@ -63,8 +68,8 @@ __device__ static int sparse_dot_prod(
 
 int cuFGLT::compute(
 		sparse::CSC<double> const * const adj,
-		double ** const f,
-		double ** const fn) {
+		double * const f,
+		double * const fn) {
 
 	/* extract matrix information */
 
@@ -101,36 +106,82 @@ int cuFGLT::compute(
 	cudaMalloc((void **) &d_col_ptr, (n_cols + 1) * sizeof(int));
 
 	// transfer matrix data from host to device
+
+	auto memcpy_in_start = chrono::high_resolution_clock::now();
 	cudaMemcpy(d_row_idx, row_idx, n_nz * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_col_ptr, col_ptr, (n_cols + 1) * sizeof(int), cudaMemcpyHostToDevice);
+	auto memcpy_in_end = chrono::high_resolution_clock::now();
 
+	auto memcpy_in_duration = chrono::duration_cast<chrono::milliseconds>(memcpy_in_end - memcpy_in_start);
+	cout << "memcpy in time: " << memcpy_in_duration.count() << " msec" << endl;
 
 	/* Compute raw frequencies */
 
+	
+	// fill d0
+	auto d0_start = chrono::high_resolution_clock::now();
 	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_f[0], n_cols);
 	cudaDeviceSynchronize();
+	auto d0_end = chrono::high_resolution_clock::now();
 
+	auto d0_duration = chrono::duration_cast<chrono::milliseconds>(d0_end - d0_start);
+
+	// compute d1
+	auto d1_start = chrono::high_resolution_clock::now();
 	compute_d1<<<NUMBLOCKS, NUMTHREADS>>>(d_f[1], d_col_ptr, n_cols);
 	cudaDeviceSynchronize();
+	auto d1_end = chrono::high_resolution_clock::now();
+
+	auto d1_duration = chrono::duration_cast<chrono::milliseconds>(d1_end - d1_start);
 	
+	// compute d2
+	auto d2_start = chrono::high_resolution_clock::now();
 	compute_d2<<<NUMBLOCKS, NUMTHREADS>>>(d_f[2], d_row_idx, d_col_ptr, d_f[1], n_cols);
 	cudaDeviceSynchronize();
+	auto d2_end = chrono::high_resolution_clock::now();
 
+	auto d2_duration = chrono::duration_cast<chrono::milliseconds>(d2_end - d2_start);
+
+	// compute d3
+	auto d3_start = chrono::high_resolution_clock::now();
 	compute_d3<<<NUMBLOCKS, NUMTHREADS>>>(d_f[3], d_f[1], n_cols);
 	cudaDeviceSynchronize();
+	auto d3_end = chrono::high_resolution_clock::now();
 
+	auto d3_duration = chrono::duration_cast<chrono::milliseconds>(d3_end - d3_start);
+
+	// compute d4
+	auto d4_start = chrono::high_resolution_clock::now();
 	compute_d4<<<NUMBLOCKS, NUMTHREADS>>>(d_f[4], d_row_idx, d_col_ptr, n_cols);
 	cudaDeviceSynchronize();
+	auto d4_end = chrono::high_resolution_clock::now();
+
+	auto d4_duration = chrono::duration_cast<chrono::milliseconds>(d4_end - d4_start);
+
+	auto raw_freq_duration = d0_duration + d1_duration + d2_duration + d3_duration + d4_duration;
+	cout << "total raw frequence time: " << raw_freq_duration.count() << " msec" << endl;
+	cout << "--- d0 time: " << d0_duration.count() << " msec" << endl;
+	cout << "--- d1 time: " << d1_duration.count() << " msec" << endl;
+	cout << "--- d2 time: " << d2_duration.count() << " msec" << endl;
+	cout << "--- d3 time: " << d3_duration.count() << " msec" << endl;
+	cout << "--- d4 time: " << d4_duration.count() << " msec" << endl;
 
 	/* Transform raw freq to net freq */
 
+	auto raw2net_start = chrono::high_resolution_clock::now();
 	raw2net<<<NUMBLOCKS, NUMTHREADS>>>( 
 	    d_f[0],  d_f[1],  d_f[2],  d_f[3],  d_f[4], 
 	    d_fn[0], d_fn[1], d_fn[2], d_fn[3], d_fn[4],
 	    n_cols);
 	cudaDeviceSynchronize();
+	auto raw2net_end = chrono::high_resolution_clock::now();
+
+	auto raw2net_duration = chrono::duration_cast<chrono::milliseconds>(raw2net_end - raw2net_start);
+	cout << "raw2net time: " << raw2net_duration.count() << " msec" << endl;
 
 	/* Transfer data from device to host and free memory on device */
+
+	auto memcpy_out_start = chrono::high_resolution_clock::now();
 
 	cudaMemcpy2D(
 			f, n_cols * sizeof(double), 
@@ -143,6 +194,14 @@ int cuFGLT::compute(
 			d_fn_base, d_pitch, 
 			n_cols * sizeof(double), NGRAPHLET, 
 			cudaMemcpyDeviceToHost);
+
+	auto memcpy_out_end = chrono::high_resolution_clock::now();
+
+	auto memcpy_out_duration = chrono::duration_cast<chrono::milliseconds>(memcpy_out_end - memcpy_out_start);
+	cout << "memcpy out time: " << memcpy_out_duration.count() << " msec" << endl << endl;
+
+	auto total_duration = memcpy_in_duration + raw_freq_duration + raw2net_duration + memcpy_out_duration;
+	cout << "TOTAL TIME: " << total_duration.count() << " msec" << endl << endl;
 
 	cudaFree(d_f_base);
 	cudaFree(d_fn_base);
@@ -287,7 +346,6 @@ __global__ static void raw2net(
 		int n_cols) {
 
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
 	while(idx < n_cols) {
 		d_fn0[idx] = d_f0[idx];
 		d_fn1[idx] = d_f1[idx];
