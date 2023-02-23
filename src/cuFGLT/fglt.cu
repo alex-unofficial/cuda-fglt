@@ -40,17 +40,17 @@ __global__ static void compute_d4(
 		int n_cols);
 
 
-__global__ static void raw2net(
-		const double * const d_f0,
-		const double * const d_f1,
-		const double * const d_f2,
-		const double * const d_f3,
-		const double * const d_f4,
-		double * const d_fn0,
-		double * const d_fn1,
-		double * const d_fn2,
-		double * const d_fn3,
-		double * const d_fn4,
+static void raw2net(
+		const double * const f0,
+		const double * const f1,
+		const double * const f2,
+		const double * const f3,
+		const double * const f4,
+		double * const fn0,
+		double * const fn1,
+		double * const fn2,
+		double * const fn3,
+		double * const fn4,
 		int n_cols);
 
 
@@ -68,8 +68,8 @@ __device__ static int sparse_dot_prod(
 
 int cuFGLT::compute(
 		sparse::CSC<double> const * const adj,
-		double * const f,
-		double * const fn) {
+		double * const f_base,
+		double * const fn_base) {
 
 	/* extract matrix information */
 
@@ -83,19 +83,22 @@ int cuFGLT::compute(
 	/* Allocate and transfer data from host to device */
 
 	double *d_f_base; 
-	double *d_fn_base;
 	int d_pitch;
 
 	// allocate memory for raw and net frequencies on device
 	cudaMallocPitch((void **) &d_f_base, (size_t *) &d_pitch, n_cols * sizeof(double), NGRAPHLET);
-	cudaMallocPitch((void **) &d_fn_base, (size_t *) &d_pitch, n_cols * sizeof(double), NGRAPHLET);
 
 	// create pointers to the frequency vectors
 	double *d_f[NGRAPHLET];
-	double *d_fn[NGRAPHLET];
+
+	double *f[NGRAPHLET];
+	double *fn[NGRAPHLET];
+
 	for(int k = 0 ; k < NGRAPHLET ; k++) {
 		d_f[k] = (double *)((char*)d_f_base + k * d_pitch);
-		d_fn[k] = (double *)((char*)d_fn_base + k * d_pitch);
+
+		f[k] = (f_base + n_cols * k);
+		fn[k] = (fn_base + n_cols * k);
 	}
 
 	int *d_row_idx;
@@ -166,45 +169,35 @@ int cuFGLT::compute(
 	cout << "--- d3 time: " << d3_duration.count() << " msec" << endl;
 	cout << "--- d4 time: " << d4_duration.count() << " msec" << endl;
 
+	/* Transfer data from device to host and free memory on device */
+
+	auto memcpy_out_start = chrono::high_resolution_clock::now();
+	cudaMemcpy2D(
+			f_base, n_cols * sizeof(double), 
+			d_f_base, d_pitch, 
+			n_cols * sizeof(double), NGRAPHLET, 
+			cudaMemcpyDeviceToHost);
+	auto memcpy_out_end = chrono::high_resolution_clock::now();
+
+	auto memcpy_out_duration = chrono::duration_cast<chrono::milliseconds>(memcpy_out_end - memcpy_out_start);
+	cout << "memcpy out time: " << memcpy_out_duration.count() << " msec" << endl;
+
 	/* Transform raw freq to net freq */
 
 	auto raw2net_start = chrono::high_resolution_clock::now();
-	raw2net<<<NUMBLOCKS, NUMTHREADS>>>( 
-	    d_f[0],  d_f[1],  d_f[2],  d_f[3],  d_f[4], 
-	    d_fn[0], d_fn[1], d_fn[2], d_fn[3], d_fn[4],
-	    n_cols);
-	cudaDeviceSynchronize();
+	raw2net(f[0],  f[1],  f[2],  f[3],  f[4], 
+	        fn[0], fn[1], fn[2], fn[3], fn[4],
+	        n_cols);
 	auto raw2net_end = chrono::high_resolution_clock::now();
 
 	auto raw2net_duration = chrono::duration_cast<chrono::milliseconds>(raw2net_end - raw2net_start);
 	cout << "raw2net time: " << raw2net_duration.count() << " msec" << endl;
 
-	/* Transfer data from device to host and free memory on device */
-
-	auto memcpy_out_start = chrono::high_resolution_clock::now();
-
-	cudaMemcpy2D(
-			f, n_cols * sizeof(double), 
-			d_f_base, d_pitch, 
-			n_cols * sizeof(double), NGRAPHLET, 
-			cudaMemcpyDeviceToHost);
-
-	cudaMemcpy2D(
-			fn, n_cols * sizeof(double), 
-			d_fn_base, d_pitch, 
-			n_cols * sizeof(double), NGRAPHLET, 
-			cudaMemcpyDeviceToHost);
-
-	auto memcpy_out_end = chrono::high_resolution_clock::now();
-
-	auto memcpy_out_duration = chrono::duration_cast<chrono::milliseconds>(memcpy_out_end - memcpy_out_start);
-	cout << "memcpy out time: " << memcpy_out_duration.count() << " msec" << endl << endl;
 
 	auto total_duration = memcpy_in_duration + raw_freq_duration + raw2net_duration + memcpy_out_duration;
-	cout << "TOTAL TIME: " << total_duration.count() << " msec" << endl << endl;
+	cout << endl << "TOTAL TIME: " << total_duration.count() << " msec" << endl << endl;
 
 	cudaFree(d_f_base);
-	cudaFree(d_fn_base);
 
 	cudaFree(d_row_idx);
 	cudaFree(d_col_ptr);
@@ -332,28 +325,25 @@ __global__ static void compute_d4(
 }
 
 
-__global__ static void raw2net(
-		const double * const d_f0,
-		const double * const d_f1,
-		const double * const d_f2,
-		const double * const d_f3,
-		const double * const d_f4,
-		double * const d_fn0,
-		double * const d_fn1,
-		double * const d_fn2,
-		double * const d_fn3,
-		double * const d_fn4,
+static void raw2net(
+		const double * const f0,
+		const double * const f1,
+		const double * const f2,
+		const double * const f3,
+		const double * const f4,
+		double * const fn0,
+		double * const fn1,
+		double * const fn2,
+		double * const fn3,
+		double * const fn4,
 		int n_cols) {
 
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	while(idx < n_cols) {
-		d_fn0[idx] = d_f0[idx];
-		d_fn1[idx] = d_f1[idx];
-		d_fn2[idx] = d_f2[idx] - 2 * d_f4[idx];
-		d_fn3[idx] = d_f3[idx] - d_f4[idx];
-		d_fn4[idx] = d_f4[idx];
-
-		idx += blockDim.x;
+	for(int idx = 0 ; idx < n_cols ; idx++) {
+		fn0[idx] = f0[idx];
+		fn1[idx] = f1[idx];
+		fn2[idx] = f2[idx] - 2 * f4[idx];
+		fn3[idx] = f3[idx] - f4[idx];
+		fn4[idx] = f4[idx];
 	}
 }
 
