@@ -63,8 +63,8 @@ __device__ static int sparse_dot_prod(
 
 int cuFGLT::compute(
 		sparse::CSC<double> const * const adj,
-		double * const f,
-		double * const fn) {
+		double ** const f,
+		double ** const fn) {
 
 	/* extract matrix information */
 
@@ -107,20 +107,20 @@ int cuFGLT::compute(
 
 	/* Compute raw frequencies */
 
-	// fill f0 with 1
 	fill_d0<<<NUMBLOCKS, NUMTHREADS>>>(d_f[0], n_cols);
+	cudaDeviceSynchronize();
 
-	// compute f1
 	compute_d1<<<NUMBLOCKS, NUMTHREADS>>>(d_f[1], d_col_ptr, n_cols);
-
-	// compute f2
+	cudaDeviceSynchronize();
+	
 	compute_d2<<<NUMBLOCKS, NUMTHREADS>>>(d_f[2], d_row_idx, d_col_ptr, d_f[1], n_cols);
+	cudaDeviceSynchronize();
 
-	// compute f3
 	compute_d3<<<NUMBLOCKS, NUMTHREADS>>>(d_f[3], d_f[1], n_cols);
+	cudaDeviceSynchronize();
 
-	// compute f4
 	compute_d4<<<NUMBLOCKS, NUMTHREADS>>>(d_f[4], d_row_idx, d_col_ptr, n_cols);
+	cudaDeviceSynchronize();
 
 	/* Transform raw freq to net freq */
 
@@ -128,6 +128,7 @@ int cuFGLT::compute(
 	    d_f[0],  d_f[1],  d_f[2],  d_f[3],  d_f[4], 
 	    d_fn[0], d_fn[1], d_fn[2], d_fn[3], d_fn[4],
 	    n_cols);
+	cudaDeviceSynchronize();
 
 	/* Transfer data from device to host and free memory on device */
 
