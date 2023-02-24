@@ -2,7 +2,8 @@
 #include <cstdlib>
 
 #include "sparse/csc/csc.hpp"
-#include "cuFGLT/fglt.cuh"
+#include "cuFGLT/cufglt.cuh"
+#include "FGLT/fglt.hpp"
 
 using namespace std;
 
@@ -20,29 +21,66 @@ int main(int argc, char **argv) {
 	sparse::CSC<double> const * const matrix = new sparse::CSC<double> (mtx_fname);
 	cout << "=== loading done" << endl << endl;
 
-	double *f_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
-	double *fn_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
+	double *cu_fbase = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
+	double *cu_fn_base = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
 
-	double *f[NGRAPHLET];
-	double *fn[NGRAPHLET];
+	double *cu_f[NGRAPHLET];
+	double *cu_fn[NGRAPHLET];
+
+	double **f = (double **) malloc(NGRAPHLET * sizeof(double *));
+	double **fn = (double **) malloc(NGRAPHLET * sizeof(double *));
+
 	for(int k = 0 ; k < NGRAPHLET ; k++) {
-		f[k] = (double *)(f_base + matrix->n_cols * k);
-		fn[k] = (double *)(fn_base + matrix->n_cols * k);
+		cu_f[k] = (double *)(cu_fbase + matrix->n_cols * k);
+		cu_fn[k] = (double *)(cu_fn_base + matrix->n_cols * k);
+
+		f[k] = (double *) malloc(matrix->n_cols * sizeof(double));
+		fn[k] = (double *) malloc(matrix->n_cols * sizeof(double));
 	}
 
-	cout << "=== starting compute operation" << endl;
-	int total_time = cuFGLT::compute(matrix, f_base, fn_base);
-	cout << "Total time: " << total_time << " msec" << endl;
-	cout << "=== compute operation done" << endl << endl;
+	cout << "=== starting CUDA compute operation" << endl;
+	int cu_total_time = cuFGLT::compute(matrix, cu_fbase, cu_fn_base);
+	cout << "CUDA Total time: " << cu_total_time << " msec" << endl;
+	cout << "=== CUDA compute operation done" << endl << endl;
 
-	cout << "RESULTS:" << endl;
+	cout << "=== starting CPU compute operation" << endl;
+	int cpu_total_time = FGLT::compute(
+			f, fn, matrix->row_idx, matrix->col_ptr,
+			matrix->n_cols, matrix->n_nz, FGLT::getWorkers()
+			);
+	cout << "CPU Total time: " << cpu_total_time << " msec" << endl;
+	cout << "=== CPU compute operation done" << endl << endl;
+
+	cout << "=== checking for errors" << endl;
+	int errors = 0;
 	for(int i = 0 ; i < matrix->n_cols ; i++) {
-		cout << i << "," << fn[0][i] << "," << fn[1][i] << "," 
-		     << fn[2][i] << "," << fn[3][i] << "," << fn[4][i] << endl;
+		for(int k = 0 ; k < NGRAPHLET ; k++) {
+			if(f[k][i] != cu_f[k][i]) {
+				errors += 1;
+				cout << errors << ": f[" << k << "][" << i << "] = " << f[k][i] << " =/= " 
+				     << "cu_f[" << k << "][" << i << "] = " << cu_f[k][i] << endl;
+			}
+
+			if(fn[k][i] != cu_fn[k][i]) {
+				errors += 1;
+				cout << errors << ": fn[" << k << "][" << i << "] = " << fn[k][i] << " =/= " 
+				     << "cu_fn[" << k << "][" << i << "] = " << cu_fn[k][i] << endl;
+			}
+		}
+	}
+	cout << "found " << errors << " errors." << endl;
+	cout << "=== error checking done" << endl << endl;
+
+	free(cu_fbase);
+	free(cu_fn_base);
+
+	for(int k = 0 ; k < NGRAPHLET ; k++) {
+		free(f[k]);
+		free(fn[k]);
 	}
 
-	free(f_base);
-	free(fn_base);
+	free(f);
+	free(fn);
 
 	delete matrix;
 

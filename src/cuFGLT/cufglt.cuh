@@ -1,9 +1,11 @@
-#ifndef FGLT_CUH
-#define FGLT_CUH
+#ifndef CUFGLT_CUH
+#define CUFGLT_CUH
 
 #include "sparse/csc/csc.hpp"
 
+#ifndef NGRAPHLET
 #define NGRAPHLET 5
+#endif
 
 namespace cuFGLT {
 

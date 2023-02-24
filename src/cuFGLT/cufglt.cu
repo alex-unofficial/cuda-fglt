@@ -1,4 +1,4 @@
-#include "fglt.cuh"
+#include "cufglt.cuh"
 
 #include <iostream>
 #include <chrono>
