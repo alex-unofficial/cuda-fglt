@@ -31,13 +31,14 @@ int main(int argc, char **argv) {
 	}
 
 	cout << "=== starting compute operation" << endl;
-	cuFGLT::compute(matrix, f_base, fn_base);
+	int total_time = cuFGLT::compute(matrix, f_base, fn_base);
+	cout << "Total time: " << total_time << " msec" << endl;
 	cout << "=== compute operation done" << endl << endl;
 
 	cout << "RESULTS:" << endl;
 	for(int i = 0 ; i < matrix->n_cols ; i++) {
-		cout << i << " " << fn[0][i] << " " << fn[1][i] << " " 
-		     << fn[2][i] << " " << fn[3][i] << " " << fn[4][i] << endl;
+		cout << i << "," << fn[0][i] << "," << fn[1][i] << "," 
+		     << fn[2][i] << "," << fn[3][i] << "," << fn[4][i] << endl;
 	}
 
 	free(f_base);

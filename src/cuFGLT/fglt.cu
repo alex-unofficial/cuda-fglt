@@ -116,7 +116,6 @@ int cuFGLT::compute(
 	auto memcpy_in_end = chrono::high_resolution_clock::now();
 
 	auto memcpy_in_duration = chrono::duration_cast<chrono::milliseconds>(memcpy_in_end - memcpy_in_start);
-	cout << "memcpy in time: " << memcpy_in_duration.count() << " msec" << endl;
 
 	/* Compute raw frequencies */
 
@@ -162,12 +161,6 @@ int cuFGLT::compute(
 	auto d4_duration = chrono::duration_cast<chrono::milliseconds>(d4_end - d4_start);
 
 	auto raw_freq_duration = d0_duration + d1_duration + d2_duration + d3_duration + d4_duration;
-	cout << "total raw frequence time: " << raw_freq_duration.count() << " msec" << endl;
-	cout << "--- d0 time: " << d0_duration.count() << " msec" << endl;
-	cout << "--- d1 time: " << d1_duration.count() << " msec" << endl;
-	cout << "--- d2 time: " << d2_duration.count() << " msec" << endl;
-	cout << "--- d3 time: " << d3_duration.count() << " msec" << endl;
-	cout << "--- d4 time: " << d4_duration.count() << " msec" << endl;
 
 	/* Transfer data from device to host and free memory on device */
 
@@ -180,7 +173,6 @@ int cuFGLT::compute(
 	auto memcpy_out_end = chrono::high_resolution_clock::now();
 
 	auto memcpy_out_duration = chrono::duration_cast<chrono::milliseconds>(memcpy_out_end - memcpy_out_start);
-	cout << "memcpy out time: " << memcpy_out_duration.count() << " msec" << endl;
 
 	/* Transform raw freq to net freq */
 
@@ -191,18 +183,16 @@ int cuFGLT::compute(
 	auto raw2net_end = chrono::high_resolution_clock::now();
 
 	auto raw2net_duration = chrono::duration_cast<chrono::milliseconds>(raw2net_end - raw2net_start);
-	cout << "raw2net time: " << raw2net_duration.count() << " msec" << endl;
 
 
 	auto total_duration = memcpy_in_duration + raw_freq_duration + raw2net_duration + memcpy_out_duration;
-	cout << endl << "TOTAL TIME: " << total_duration.count() << " msec" << endl << endl;
 
 	cudaFree(d_f_base);
 
 	cudaFree(d_row_idx);
 	cudaFree(d_col_ptr);
 
-	return 0;
+	return total_duration.count();
 }
 
 
