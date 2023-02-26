@@ -216,7 +216,9 @@ __global__ static void compute_d2(
 		double t_sum = 0;
 
 		int j = d_col_ptr[i] + tid;
-		while(j < d_col_ptr[i + 1]) {
+		int final_idx = d_col_ptr[i + 1];
+
+		while(j < final_idx) {
 			t_sum += d_p1[d_row_idx[j]];
 			j += thread_num;
 		}
@@ -242,7 +244,8 @@ __global__ static void compute_d3(
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
 	while(idx < n_cols) {
-		d_f3[idx] = (double)(d_p1[idx] * (d_p1[idx] - 1)) / 2.0;
+		double p1_i = d_p1[idx];
+		d_f3[idx] = (double)(p1_i * (p1_i - 1)) / 2.0;
 		idx += blockDim.x;
 	}
 }
@@ -263,11 +266,14 @@ __global__ static void compute_d4(
 		int tid = threadIdx.x;
 		double t_sum = 0;
 
-		int const * const ai = d_row_idx + d_col_ptr[i];
-		int ai_nnz = d_col_ptr[i + 1] - d_col_ptr[i];
+		int first_idx = d_col_ptr[i];
+		int final_idx = d_col_ptr[i + 1];
 
-		int j_ptr = d_col_ptr[i] + tid;
-		while(j_ptr < d_col_ptr[i + 1]) {
+		int const * const ai = d_row_idx + first_idx;
+		int ai_nnz = final_idx - first_idx;
+
+		int j_ptr = first_idx + tid;
+		while(j_ptr < final_idx) {
 			int j = d_row_idx[j_ptr];
 
 			int const * const aj = d_row_idx + d_col_ptr[j];
@@ -343,20 +349,21 @@ __device__ static int sparse_dot_prod(
 	double res = 0;
 
 	int i_ptr = 0, j_ptr = 0;
+
+	int i = vec1_idx[i_ptr];
+	int j = vec2_idx[j_ptr];
+
 	while(i_ptr < vec1_nnz && j_ptr < vec2_nnz) {
 
-		int i = vec1_idx[i_ptr];
-		int j = vec2_idx[j_ptr];
-
 		if(i < j) {
-			i_ptr += 1;
+			i = vec1_idx[++i_ptr];
 		} else if(j < i) {
-			j_ptr += 1;
+			j = vec2_idx[++j_ptr];
 		} else {
 			res += 1;
 
-			i_ptr += 1;
-			j_ptr += 1;
+			i = vec1_idx[++i_ptr];
+			j = vec2_idx[++j_ptr];
 		}
 	}
 
