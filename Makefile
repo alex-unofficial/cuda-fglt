@@ -22,10 +22,10 @@ CXX=g++
 NVCC=nvcc
 
 # Packages used and Compiler flags
-PACKAGES=cuda
+PACKAGES=
 
-CFLAGS=$(shell pkgconf --cflags-only-other $(PACKAGES)) -O3
-LDFLAGS=$(shell pkgconf --libs $(PACKAGES))
+CFLAGS=$(shell pkgconf --cflags-only-other $(PACKAGES) 2> /dev/null || echo "") -O3
+LDFLAGS=$(shell pkgconf --libs $(PACKAGES) 2> /dev/null || echo "")
 
 # The name of the executable
 EXEC_NAME=cuda-fglt
@@ -60,7 +60,7 @@ EXTERNAL_OBJS := $(patsubst %, $(BUILD_DIR)/%.o, $(EXTERNAL))
 DEPS := $(patsubst %.o, %.d, $(OBJS) $(TEST_OBJS) $(EXTERNAL_OBJS))
 
 # Include directories for the compiler
-INC_FLAGS := $(addprefix -I,$(SRC_DIR) $(EXTERNAL_DIR)) $(shell pkgconf --cflags-only-I $(PACKAGES))
+INC_FLAGS := $(addprefix -I,$(SRC_DIR) $(EXTERNAL_DIR)) $(shell pkgconf --cflags-only-I $(PACKAGES)2> /dev/null || echo "")
 
 # Setting VPATH to include the source file directories
 VPATH_DIRS := $(shell find $(SRC_DIR) $(EXTERNAL_DIR) -type d)
