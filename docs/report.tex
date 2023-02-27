@@ -164,6 +164,79 @@ to compute $\hat{d}_1$ and $\hat{d}_3$.
 Some additional logic is added using events to ensure that no kernel is launched without the data it needs
 having first been completed.
 
+\section{Results}
+Using the Aristotle HPC Cluster I was able to test the performance of the implementation on
+the `gpu' partition, which has an \textit{Nvidia Tesla P100}.
+
+I tested the result on 4 matrices from the \textit{SuiteSparse Matrix Collection},
+
+\begin{tabular}{l l l}
+	Matrix Name & Columns & Non-zero Elements \\
+	\hline
+	\verb|auto| & 448695 & 6629222 \\
+	\verb|great-britain_osm| & 7733822 & 16313034 \\
+	\verb|delaunay_n22| & 4194304 & 25165738 \\
+	\verb|com-Youtube| & 1134890 & 5975248
+\end{tabular}
+
+\subsection{Comparison to CPU}
+One way to test the performance of the program is to compare the total execution time to that when
+ran on the CPU.
+
+Table \ref{times:blocks}. shows the relationship between the Num. of \cuda \ Blocks used and the execution time
+of the program, while Table \ref{times:threads}. does the same for the Num. of threads per \cuda \ Block. 
+The CPU time for each matrix is also given as a comparison metric.
+
+\begin{table}[h!]
+	\centering
+
+	\caption{
+		The execution times (in msec) of the program for each of the matrices. The line labeled CPU is 
+		the execution time of the Serial Implementation and is given as a comparison.}
+
+	\begin{subtable}[T]{0.45 \textwidth}
+		\centering
+		\begin{tabular}{|c|*{4}{r|}}
+			\hline
+			Blocks & \verb| auto | & \verb|great..| & \verb|delaun..| & \verb|com-You..| \\
+			\hline \hline
+			CPU   & 833 ms  & 835 ms  & 1799 ms  & 23781 ms \\
+			\hline
+			64    & 132 ms  & 908 ms  &  663 ms  & 5579 ms \\
+			128   &  78 ms  & 580 ms  &  429 ms  & 4686 ms \\
+			256   &  50 ms  & 405 ms  &  308 ms  & 3962 ms \\
+			512   &  34 ms  & 321 ms  &  242 ms  & 3467 ms \\
+			1024  &  27 ms  & 291 ms  &  223 ms  & 3301 ms \\
+			2048  &  29 ms  & 286 ms  &  213 ms  & 3257 ms \\
+			4096  &  27 ms  & 276 ms  &  202 ms  & 3177 ms \\
+			\hline
+		\end{tabular}
+		\subcaption{Adjusting Num. Blocks while keeping the Threads/Block constant and equal to 32}
+		\label{times:blocks}
+	\end{subtable}
+	\hspace{0.5cm}
+	\begin{subtable}[T]{0.45 \textwidth}
+		\centering
+		\begin{tabular}{|c|*{4}{r|}}
+			\hline
+			Threads & \verb| auto | & \verb|great..| & \verb|delaun..| & \verb|com-You..| \\
+			\hline \hline
+			CPU     & 828 ms  &  834 ms  & 1782 ms  & 23748 ms \\
+			\hline
+			32      &  47 ms  &  416 ms  &  298 ms  & 3966 ms \\
+			64      &  49 ms  &  435 ms  &  307 ms  & 2581 ms \\
+			128     &  51 ms  &  508 ms  &  338 ms  & 1926 ms \\
+			256     &  63 ms  &  813 ms  &  493 ms  & 1709 ms \\
+			512     & 118 ms  & 1416 ms  &  855 ms  & 1793 ms \\
+			\hline
+		\end{tabular}
+		\subcaption{Adjusting the Threads/Block while keeping Num. Blocks constant and equal to 256}
+		\label{times:threads}
+	\end{subtable}
+
+	\label{times}
+\end{table}
+
 \printbibliography
 
 \end{document}
