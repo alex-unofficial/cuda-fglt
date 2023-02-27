@@ -180,7 +180,7 @@ __global__ static void fill_d0(
 
 	while (idx < n_cols) {
 		d_f0[idx] = 1.0;
-		idx += blockDim.x;
+		idx += blockDim.x * gridDim.x;
 	}
 }
 
@@ -194,7 +194,7 @@ __global__ static void compute_d1(
 
 	while(idx < n_cols) {
 		d_f1[idx] = (double)(d_col_ptr[idx + 1] - d_col_ptr[idx]);
-		idx += blockDim.x;
+		idx += blockDim.x * gridDim.x;
 	}
 }
 
@@ -246,7 +246,7 @@ __global__ static void compute_d3(
 	while(idx < n_cols) {
 		double p1_i = d_p1[idx];
 		d_f3[idx] = (double)(p1_i * (p1_i - 1)) / 2.0;
-		idx += blockDim.x;
+		idx += blockDim.x * gridDim.x;
 	}
 }
 
