@@ -1,0 +1,169 @@
+\documentclass[10pt, a4paper]{article}
+
+% formating packages
+\usepackage[a4paper, margin=1cm, bmargin=2cm]{geometry}
+\usepackage{titling}
+\usepackage[perpage]{footmisc}
+
+% bibliography packages
+\usepackage[backend=biber,style=numeric]{biblatex}
+\addbibresource{ref.bib}
+
+% clickable links
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	urlcolor=black,
+	linkcolor=black,
+	citecolor=black
+	}
+
+% graphics packages
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+%math packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\graphicspath{ {./plots/} }
+
+% reduce title size by 1cm
+\setlength{\droptitle}{-1.5cm}
+
+% set paragraph indent to 0 and paragraph seperation to 5pt
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+% macros
+\newcommand{\cuda}{\textit{CUDA}}
+\newcommand{\gnu}{\textit{GNU}}
+\newcommand{\C}{\textit{C}}
+\newcommand{\fglt}{\textit{FGLT}}
+\newcommand{\slurm}{\textit{Slurm}}
+
+\begin{document}
+
+\title{
+	\textbf{Parallel \& Distributed Computer Systems}\\
+	Exercise 3 -- \fglt \ with \cuda
+}
+
+\author{\textit{Alexandros Athanasiadis} -- 10006}
+\date{\today}
+
+\maketitle
+
+\begin{abstract}
+	In this report I will showcase my implementation of the Fast Graphlet Transform, as described in
+	\cite{floros2020}, using the \cuda \ programming model, running on a GPU. I will show the algotithms
+	used to compute the various Graphlets, and then the choices for block/thread distribution and streaming
+	in the GPU environment. \\
+
+	\noindent
+	Source code at: \url{https://github.com/alex-unofficial/cuda-fglt}
+\end{abstract}
+
+\section{The Problem}
+The Fast Graphlet Transform as a problem and its solution is described in \cite{floros2020} in detail. We were
+asked to implement the calculation of the raw and net frequencies $\hat{d}_k$ and $d_k$ for the first 5 
+graphlets ($0 \leq k \leq 4$) using \cuda.
+
+Considering the adjacency matrix $A$ of a symmetric graph is a symmetric sparse matrix of 
+either $0$ or $1$ at each position, we can create efficient algorithms for calculating the 
+various frequencies. \\
+
+Considering that $A$ is stored using the CSC 
+\footnote{Since $A$ is symmetric, it doesn't matter if we use CSC or CSR}
+sparse matrix format,
+
+To calculate the raw frequencies:
+\begin{itemize}
+	\item $\hat{d}_0$ is trivial.
+
+	\item for $\hat{d}_1$, the result at each index $i$ is equal to the sum of the elements of row $i$ of $A$,
+		and since all non-zero elements of $A$ are equal to $1$, the sum of the elements is equal to the number
+		of non-zero elements in row $i$, or \verb|col_ptr[i + 1] - col_ptr[i]| of the CSC format.
+
+	\item for $\hat{d}_2$, for each row $i$, find the column indices $j$ of each non-zero element 
+		in row $i$, and add the value of $p_1[j]$ to a sum. Finally subtract the value of $p_1[i]$
+		to get the result at index $i$.
+
+	\item for $\hat{d}_3$, having calculated $p_1 = \hat{d}_1$, for each index $i$ the result is 
+		$p_1[i] \cdot (p_1[i] - 1)/2$.
+
+	\item for $\hat{d}_4$, for each row $i$, we find all non-zero elements at columns $j$. Then for each $j$ we
+		calculate the value of $A^2_{ij}$ and add it to a sum. The result at index $i$ will be equal to the sum
+		divided by $2$.
+\end{itemize}
+
+Then for the net frequencies, we can use $d_{0:4} = U^{-1}_5 \hat{d}_{0:4}$ as is shown in \cite{floros2020}.
+
+\section{Working with \cuda}
+
+\subsection{Block and Thread distribution}
+In the \cuda \ programming model each kernel is given a grid of blocks that each contain threads.
+The problem of distributing these blocks and threads is of critical importance for parallelizing 
+algorithms to run on a GPU.
+
+For $\hat{d}_0$, $\hat{d}_1$ and $\hat{d}_3$ which are one-dimensional problems,
+we can index the arrays using the formula \\
+\verb|int tid = blockIdx.x * blockDim.x + threadIdx.x| which is standard when converting to one-dimensional 
+index, then perform the required operation at index \verb|tid|. Finally \verb|tid| is updated:
+\verb|tid += blockDim.x * gridDim.x|
+
+As for $\hat{d}_2$ and $\hat{d}_4$ it is not that simple. Firstly, there are more dimensions to the problems,
+and this is further complicated by the fact that while threads can communicate with shared memory, 
+blocks cannot, and so we must be careful not to require communication between blocks.
+
+The process for these 2 calculations of the raw frequencies is given below.
+
+\subsubsection{For $\hat{d}_2 = A p_1 - p_1$}
+for the index $i$ of the result I use \verb|int i = blockIdx.x|, meaning
+the rows are distributed between the blocks.
+
+The threads of each block are distributed to the non-zero elements of row $i$, 
+meaning \verb|int j_ptr = threadIdx.x| and \verb|int j = row_idx[j_ptr]|.
+
+The thread then adds the value of $p_1$ at index $j$ to a running sum, and is updated:
+\verb|j_ptr += blockDim.x|
+
+Each thread then adds the total sum to a shared memory array, which after all threads are finished is
+reduced to the total sum of all the elements, meaning this is the result of $A p_1$ at index $i$.
+Finally the head thread writes the result to the output array, subtracting $p_1[i]$.
+
+Then $i$ is updated: \verb|i += gridDim.x| and the process repeats.
+
+\subsubsection{For $\hat{d}_4 = (A \odot A^2) \cdot \mathrm{e} / 2$}
+The distribution of blocks and threads is similar for $\hat{d}_4$.
+
+Each row $i$ is distributed between blocks: \verb|int i = blockIdx.x|
+
+Then the non-zero elements of the row $i$ are distributed between threads \\
+\verb|int j_ptr = threadIdx.x| and \verb|int j = row_idx[j_ptr]|
+
+Each thread must then add to the sum the value of $A^2$ and index $(i, j)$
+
+The rest of the process is similar to the one above.
+
+\subsection{Streaming}
+There is a significant overhead when transferring data from the CPU to the GPU and vice versa.
+for this reason we can use streaming in an attempt to hide the data transfer costs.
+
+For example we might launch a kernel to do some operation while at the same type copying some unrelated data
+to the GPU.
+
+In this program there is some potential for concurrency. for example, $\hat{d}_0$ is always equal to $1$,
+and so it depends on none of the data, and so we can execute the kernel that ``computes'' it concurrent
+to the data transfer.
+
+Furthermore, $\hat{d}_1$ and $\hat{d}_3$ only depend on the \verb|col_ptr| array, so after this has transferred
+to the GPU, we can start the transfer of the \verb|row_idx| array while concurrently running the kernels
+to compute $\hat{d}_1$ and $\hat{d}_3$.
+
+Some additional logic is added using events to ensure that no kernel is launched without the data it needs
+having first been completed.
+
+\printbibliography
+
+\end{document}
