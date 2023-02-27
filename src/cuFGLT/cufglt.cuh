@@ -7,6 +7,14 @@
 #define NGRAPHLET 5
 #endif
 
+#ifndef NUMBLOCKS
+#define NUMBLOCKS 512
+#endif
+
+#ifndef NUMTHREADS
+#define NUMTHREADS 32
+#endif
+
 namespace cuFGLT {
 
 	int compute(

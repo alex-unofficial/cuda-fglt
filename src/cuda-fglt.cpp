@@ -19,6 +19,8 @@ int main(int argc, char **argv) {
 
 	cout << "=== loading file " << mtx_fname << endl;
 	sparse::CSC<double> const * const matrix = new sparse::CSC<double> (mtx_fname);
+	cout << "num_cols = " << matrix->n_cols << endl;
+	cout << "num_nz = " << matrix->n_nz << endl;
 	cout << "=== loading done" << endl << endl;
 
 	double *cu_fbase = (double *) malloc(NGRAPHLET * matrix->n_cols * sizeof(double));
@@ -39,15 +41,26 @@ int main(int argc, char **argv) {
 	}
 
 	cout << "=== starting CUDA compute operation" << endl;
+
+	cout << "NUMBLOCKS = " << NUMBLOCKS << endl;
+	cout << "NUMTHREADS = " << NUMTHREADS << endl;
+
 	int cu_total_time = cuFGLT::compute(matrix, cu_fbase, cu_fn_base);
+
 	cout << "CUDA Total time: " << cu_total_time << " msec" << endl;
+
 	cout << "=== CUDA compute operation done" << endl << endl;
 
+
 	cout << "=== starting CPU compute operation" << endl;
+
+	cout << "cilkThreads = " << FGLT::getWorkers() << endl;
+
 	int cpu_total_time = FGLT::compute(
 			f, fn, matrix->row_idx, matrix->col_ptr,
 			matrix->n_cols, matrix->n_nz, FGLT::getWorkers()
 			);
+
 	cout << "CPU Total time: " << cpu_total_time << " msec" << endl;
 	cout << "=== CPU compute operation done" << endl << endl;
 

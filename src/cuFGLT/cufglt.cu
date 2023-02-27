@@ -3,9 +3,6 @@
 #include <iostream>
 #include <chrono>
 
-#define NUMBLOCKS 512
-#define NUMTHREADS 32
-
 using namespace std;
 
 __global__ static void fill_d0(
