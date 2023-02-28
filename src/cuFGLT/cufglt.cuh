@@ -27,7 +27,7 @@
 #endif
 
 #ifndef NUMBLOCKS
-#define NUMBLOCKS 512
+#define NUMBLOCKS 4096
 #endif
 
 #ifndef NUMTHREADS
