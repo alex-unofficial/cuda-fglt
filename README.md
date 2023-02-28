@@ -20,6 +20,13 @@ then simply run
 make
 ```
 
+if your Nvidia graphics card compute capability is something other than `5.0`, 
+for example X.X
+then you should instead do
+```bash
+make NVCCFLAGS="-arch=sm_XX"
+```
+
 ### setp on `AUTH IT Compute Cluster`
 you will need to run the following line before compiling
 ```
