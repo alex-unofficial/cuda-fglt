@@ -36,6 +36,13 @@
 
 namespace cuFGLT {
 
+	/* computes the FGLT for the graph described by `adj`
+	 * 
+	 * parameters:
+	 * - adj (in): the adjacency matrix of the graph
+	 * - f  (out): the raw frequencies for the graphlets. must be row-major size [NGRAPHLET][n_cols]
+	 * - fn (out): the net frequencies for the graphlets. must be row-major size [NGRAPHLET][n_cols]
+	 */
 	int compute(
 			sparse::CSC<double> const * const adj,
 			double * const f,
