@@ -237,6 +237,52 @@ The CPU time for each matrix is also given as a comparison metric.
 	\label{times}
 \end{table}
 
+From these results it is evident that a significant speedup is possible using a GPU to compute
+the \fglt, depending significantly on the grid and block size. In general it seems that increasing the 
+num. of blocks in the grid increases performance, while increasing the number of threads in each block
+past 32 actually decreases performance -- the exception seemingly being \verb|com-Youtube|.
+
+\section{Feedback}
+In the last assignment, I said I regret leaving it to the last moment and rushing it, and that
+I would try to not do that for the next one (meaning this one). As it turns out, that did not work
+out as planned\footnote{Being in the exam period I feel it is somewhat justified}.
+
+Nevertheless, here's some feedback on this assignment.
+
+\subsection{CUDA}
+First of all CUDA was not as difficult as I expected it to be, and getting it to work correctly 
+and somewhat efficiently was quite straightforward. That being said, I do not believe my implementation
+is entirely optimized. 
+
+I was unable to do theoretical bandwidth/performance percentage analysis, 
+mainly due to the difficulty in evaluating the number of read/write memory operations correctly, 
+but by some estimates I don't believe it's very high.
+
+\subsection{Testing}
+One might notice the lack of graphics in this Report, and that is on purpose, because I do not
+believe that the results obrained would fit well in plotted format. For this reason I attached
+the results in tabular format.
+
+I will say I had some difficulty choosing which parameters to even test in my testing. I chose the
+number of blocks and threads since that was somewhat obvious but I cannot help but feel that there was
+more I could have tested. 
+
+Additionally, the results obtained are somewhat inexplicable. For example \verb|com-Youtube| needing 
+more than 10 times more execution time than the other matrices, even though it is smaller both in rows
+and in non-zero elements.
+
+\subsection{Report}
+The report is shorter than the previous ones, even one page less than the limit\footnote{In the last report
+I went over the limit}. This is partially explained by the fact that \cite{floros2020} was given as a
+resource which was pretty complete when it came to explaining the problem and methods, and partially due
+to the apparently low complexity of the implementation.
+
+Regardless, I'd rather have more to say than less, and so I'm a little dissapointed. The issue here I think
+again is that I did not have enough time.
+
+That being said, I'm hoping that the following and last assignment, having a few months to work on it
+\footnote{Fingers crossed}, will turn out more well-rounded and complete.
+
 \printbibliography
 
 \end{document}
