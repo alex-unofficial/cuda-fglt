@@ -1,0 +1,57 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global}
+    \entry{floros2020}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=5c481e7c6af0a48f33beaced4097f998}{%
+           family={Floros},
+           familyi={F\bibinitperiod},
+           given={Dimitris},
+           giveni={D\bibinitperiod}}}%
+        {{hash=9f0c1f5b84e64a0a3e4a8e3e064bfec9}{%
+           family={Pitsianis},
+           familyi={P\bibinitperiod},
+           given={Nikos},
+           giveni={N\bibinitperiod}}}%
+        {{hash=ad6a4edeb02b53eba7614bc06762ba69}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Xiaobai},
+           giveni={X\bibinitperiod}}}%
+      }
+      \strng{namehash}{a987736d497598ea3d8f489b00b49aa5}
+      \strng{fullhash}{a987736d497598ea3d8f489b00b49aa5}
+      \strng{bibnamehash}{a987736d497598ea3d8f489b00b49aa5}
+      \strng{authorbibnamehash}{a987736d497598ea3d8f489b00b49aa5}
+      \strng{authornamehash}{a987736d497598ea3d8f489b00b49aa5}
+      \strng{authorfullhash}{a987736d497598ea3d8f489b00b49aa5}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{{{IEEE High Performance Extreme Computing Conference}}}
+      \field{title}{Fast Graphlet Transform of Sparse Graphs}
+      \field{year}{2020}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
