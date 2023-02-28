@@ -1,5 +1,5 @@
-#cuda-fglt
-##computes the FGLT of a graph using CUDA
+# cuda-fglt
+## computes the FGLT of a graph using CUDA
 
 This program was built as an assignment for my Parallel & Distributed Comp. Systems
 class in University.
